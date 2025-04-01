@@ -5,6 +5,7 @@
 #define FINDFILEDIALOG_H
 
 #include <QDialog>
+#include <QCheckBox>
 
 QT_BEGIN_NAMESPACE
 class QComboBox;
@@ -12,6 +13,7 @@ class QDialogButtonBox;
 class QLabel;
 class QToolButton;
 class QTreeWidget;
+
 QT_END_NAMESPACE
 
 class Assistant;
@@ -30,6 +32,7 @@ private slots:
     void help();
     void openFile();
     void update();
+    void toggleHighlighting(); // Add this slot
 
 private:
     void findFiles();
@@ -54,6 +57,7 @@ private:
     QDialogButtonBox *buttonBox;
 
     QToolButton *browseButton;
+    QCheckBox *highlightCheckBox;
 };
 //! [0]
 

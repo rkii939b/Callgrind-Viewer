@@ -3,108 +3,202 @@
 
 #include "assistant.h"
 #include "findfiledialog.h"
-#include "mainwindow.h"
 #include "textedit.h"
 
-#include <QAction>
-#include <QApplication>
-#include <QLibraryInfo>
-#include <QMenu>
-#include <QMenuBar>
-#include <QMessageBox>
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QDir>
+#include <QFileDialog>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QToolButton>
+#include <QTreeWidget>
+#include <QTreeWidgetItem>
 
-using namespace Qt::StringLiterals;
-
-// ![0]
-MainWindow::MainWindow()
-    : textViewer(new TextEdit)
-    , assistant(new Assistant)
+//! [0]
+FindFileDialog::FindFileDialog(TextEdit *editor, Assistant *assistant)
+    : QDialog(editor)
+    , currentEditor(editor)
+    , currentAssistant(assistant)
 {
-// ![0]
-    textViewer->setContents(QLibraryInfo::path(QLibraryInfo::ExamplesPath)
-                            + "/assistant/simpletextviewer/documentation/intro.html"_L1);
-    setCentralWidget(textViewer);
+    //! [0]
 
-    createActions();
-    createMenus();
+    createButtons();
+    createComboBoxes();
+    createFilesTree();
+    createLabels();
+    createLayout();
 
-    setWindowTitle(tr("Simple Text Viewer"));
-    resize(750, 400);
-// ![1]
+    directoryComboBox->addItem(QDir::toNativeSeparators(QDir::currentPath()));
+    fileNameComboBox->addItem("*");
+    findFiles();
+
+    setWindowTitle(tr("Find File"));
+    //! [1]
 }
 //! [1]
 
+void FindFileDialog::browse()
+{
+    const QString currentDirectory = directoryComboBox->currentText();
+    const QString newDirectory = QFileDialog::getExistingDirectory(this,
+                                                                   tr("Select Directory"), currentDirectory);
+    if (!newDirectory.isEmpty()) {
+        directoryComboBox->addItem(QDir::toNativeSeparators(newDirectory));
+        directoryComboBox->setCurrentIndex(directoryComboBox->count() - 1);
+        update();
+    }
+}
+
 //! [2]
-void MainWindow::closeEvent(QCloseEvent *)
+void FindFileDialog::help()
 {
-    delete assistant;
+    currentAssistant->showDocumentation("filedialog.html");
 }
 //! [2]
 
-void MainWindow::about()
+void FindFileDialog::openFile()
 {
-    QMessageBox::about(this, tr("About Simple Text Viewer"),
-                       tr("This example demonstrates how to use\n"
-                          "Qt Assistant as help system for your\n"
-                          "own application."));
+    QTreeWidgetItem *item = foundFilesTree->currentItem();
+    if (!item)
+        return;
+
+    const QString fileName = item->text(0);
+    const QString path = QDir(directoryComboBox->currentText()).filePath(fileName);
+
+    bool enableHighlighting = highlightCheckBox->isChecked();
+    currentEditor->setContents(path, enableHighlighting);
+    if (!highlightCheckBox->isChecked()) {
+        currentEditor->clearHighlighter();
+    }
+
+    close();
 }
 
-//! [3]
-void MainWindow::showDocumentation()
+void FindFileDialog::update()
 {
-    assistant->showDocumentation("index.html");
-}
-//! [3]
-
-void MainWindow::open()
-{
-    FindFileDialog dialog(textViewer, assistant);
-    dialog.exec();
+    findFiles();
+    buttonBox->button(QDialogButtonBox::Open)->setEnabled(foundFilesTree->topLevelItemCount() > 0);
 }
 
-//! [4]
-void MainWindow::createActions()
+void FindFileDialog::findFiles()
 {
-    assistantAct = new QAction(tr("Help Contents"), this);
-    assistantAct->setShortcut(QKeySequence::HelpContents);
-    connect(assistantAct, &QAction::triggered, this, &MainWindow::showDocumentation);
-//! [4]
+    QString wildCard = fileNameComboBox->currentText();
+    if (!wildCard.endsWith('*'))
+        wildCard += '*';
+    const QRegularExpression filePattern(QRegularExpression::wildcardToRegularExpression(wildCard));
 
-    openAct = new QAction(tr("&Open..."), this);
-    openAct->setShortcut(QKeySequence::Open);
-    connect(openAct, &QAction::triggered, this, &MainWindow::open);
+    const QDir directory(directoryComboBox->currentText());
 
-    clearAct = new QAction(tr("&Clear"), this);
-    clearAct->setShortcut(tr("Ctrl+C"));
-    connect(clearAct, &QAction::triggered, textViewer, &QTextEdit::clear);
+    const QStringList allFiles = directory.entryList(QDir::Files | QDir::NoSymLinks);
+    QStringList matchingFiles;
 
-    exitAct = new QAction(tr("E&xit"), this);
-    exitAct->setShortcuts(QKeySequence::Quit);
-    connect(exitAct, &QAction::triggered, this, &QWidget::close);
-
-    aboutAct = new QAction(tr("&About"), this);
-    connect(aboutAct, &QAction::triggered, this, &MainWindow::about);
-
-    aboutQtAct = new QAction(tr("About &Qt"), this);
-    connect(aboutQtAct, &QAction::triggered, QApplication::aboutQt);
-//! [5]
+    for (const QString &file : allFiles) {
+        if (filePattern.match(file).hasMatch())
+            matchingFiles << file;
+    }
+    showFiles(matchingFiles);
 }
-//! [5]
 
-void MainWindow::createMenus()
+void FindFileDialog::showFiles(const QStringList &files)
 {
-    fileMenu = new QMenu(tr("&File"), this);
-    fileMenu->addAction(openAct);
-    fileMenu->addAction(clearAct);
-    fileMenu->addSeparator();
-    fileMenu->addAction(exitAct);
+    foundFilesTree->clear();
 
-    helpMenu = new QMenu(tr("&Help"), this);
-    helpMenu->addAction(assistantAct);
-    helpMenu->addSeparator();
-    helpMenu->addAction(aboutAct);
-    helpMenu->addAction(aboutQtAct);
+    for (const QString &file : files) {
+        QTreeWidgetItem *item = new QTreeWidgetItem(foundFilesTree, {file});
 
-    menuBar()->addMenu(fileMenu);
-    menuBar()->addMenu(helpMenu);
+        // Highlight Callgrind files
+        if (file.contains("callgrind.out")) {
+            item->setBackground(0, QBrush(Qt::green));// Set green highlight
+
+            if (highlightCheckBox->isChecked() && file.contains("callgrind.out")) {
+                item->setBackground(0, QBrush(Qt::green));
+            } else {
+                item->setBackground(0, QBrush(Qt::transparent)); // Remove highlighting
+            }
+        }
+    }
+
+    if (!files.isEmpty()) {
+        foundFilesTree->setCurrentItem(foundFilesTree->topLevelItem(0));
+    }
 }
+
+void FindFileDialog::createButtons()
+{
+    browseButton = new QToolButton;
+    browseButton->setText(tr("..."));
+    connect(browseButton, &QAbstractButton::clicked, this, &FindFileDialog::browse);
+
+    buttonBox = new QDialogButtonBox(QDialogButtonBox::Open
+                                     | QDialogButtonBox::Cancel
+                                     | QDialogButtonBox::Help);
+    connect(buttonBox, &QDialogButtonBox::accepted, this, &FindFileDialog::openFile);
+    connect(buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(buttonBox, &QDialogButtonBox::helpRequested, this, &FindFileDialog::help);
+
+    highlightCheckBox = new QCheckBox(tr("Enable Callgrind Highlighting"));
+    highlightCheckBox->setChecked(true); // Default enabled
+    connect(highlightCheckBox, &QCheckBox::toggled, this, &FindFileDialog::toggleHighlighting);
+}
+
+void FindFileDialog::createComboBoxes()
+{
+    directoryComboBox = new QComboBox;
+    fileNameComboBox = new QComboBox;
+
+    fileNameComboBox->setEditable(true);
+    fileNameComboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    directoryComboBox->setMinimumContentsLength(30);
+    directoryComboBox->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    directoryComboBox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+
+    connect(fileNameComboBox, &QComboBox::editTextChanged, this, &FindFileDialog::update);
+    connect(directoryComboBox, &QComboBox::currentTextChanged, this, &FindFileDialog::update);
+}
+
+void FindFileDialog::createFilesTree()
+{
+    foundFilesTree = new QTreeWidget;
+    foundFilesTree->setColumnCount(1);
+    foundFilesTree->setHeaderLabels(QStringList(tr("Matching Files")));
+    foundFilesTree->setRootIsDecorated(false);
+    foundFilesTree->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    connect(foundFilesTree, &QTreeWidget::itemActivated, this, &FindFileDialog::openFile);
+}
+
+void FindFileDialog::createLabels()
+{
+    directoryLabel = new QLabel(tr("Search in:"));
+    fileNameLabel = new QLabel(tr("File name (including wildcards):"));
+}
+
+void FindFileDialog::createLayout()
+{
+    QHBoxLayout *fileLayout = new QHBoxLayout;
+    fileLayout->addWidget(fileNameLabel);
+    fileLayout->addWidget(fileNameComboBox);
+
+    QHBoxLayout *directoryLayout = new QHBoxLayout;
+    directoryLayout->addWidget(directoryLabel);
+    directoryLayout->addWidget(directoryComboBox);
+    directoryLayout->addWidget(browseButton);
+
+    QVBoxLayout *mainLayout = new QVBoxLayout;
+    mainLayout->addLayout(fileLayout);
+    mainLayout->addLayout(directoryLayout);
+    mainLayout->addWidget(foundFilesTree);
+    mainLayout->addWidget(highlightCheckBox);
+    mainLayout->addStretch();
+    mainLayout->addWidget(buttonBox);
+    setLayout(mainLayout);
+}
+void FindFileDialog::toggleHighlighting()
+{
+    update(); // Refresh the file list when the checkbox is toggled
+}
+
