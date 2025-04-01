@@ -1,6 +1,3 @@
-// Copyright (C) 2017 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
@@ -20,8 +17,8 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow();
-
 private slots:
+    void updateWindowTitle(const QString &fileName);
     void about();
     void showDocumentation();
     void open();
