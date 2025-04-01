@@ -1,23 +1,25 @@
-// Copyright (C) 2017 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 #ifndef TEXTEDIT_H
 #define TEXTEDIT_H
 
 #include <QTextEdit>
-#include <QUrl>
+#include "callgrindhighlighter.h"
 
 class TextEdit : public QTextEdit
 {
     Q_OBJECT
-
 public:
-    TextEdit(QWidget *parent = nullptr);
-    void setContents(const QString &fileName);
+    explicit TextEdit(QWidget *parent = nullptr);
+    void setContents(const QString &fileName, bool enableHighlighting);
+    void clearHighlighter();  // Declare the clearHighlighter() method
+
+signals:
+    void fileNameChanged(const QString &fileName);
 
 private:
-    QVariant loadResource(int type, const QUrl &name) override;
+    CallgrindSyntaxHighlighter *m_highlighter = nullptr;
     QUrl srcUrl;
+
+    QVariant loadResource(int type, const QUrl &name) override;
 };
 
-#endif
+#endif // TEXTEDIT_H

@@ -1,28 +1,51 @@
-// Copyright (C) 2017 The Qt Company Ltd.
-// SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
-
 #include "textedit.h"
-
 #include <QFile>
 #include <QFileInfo>
+#include <QDebug>
 
 TextEdit::TextEdit(QWidget *parent)
-    : QTextEdit(parent)
+    : QTextEdit(parent), m_highlighter(nullptr)
 {
     setReadOnly(true);
 }
 
-void TextEdit::setContents(const QString &fileName)
+void TextEdit::setContents(const QString &fileName, bool enableHighlighting)
 {
-    const QFileInfo fi(fileName);
+    // Clear existing content and highlighter
+    clear();
+    if (m_highlighter) {
+        delete m_highlighter;
+        m_highlighter = nullptr;
+    }
+
+    QFileInfo fi(fileName);
     srcUrl = QUrl::fromLocalFile(fi.absoluteFilePath());
+
+    if (enableHighlighting && (fileName.endsWith(".callgrind", Qt::CaseInsensitive) ||
+                               fileName.contains("callgrind.out"))) {
+        qDebug() << "Initializing Callgrind highlighter for:" << fileName;
+        m_highlighter = new CallgrindSyntaxHighlighter(document());
+    }
+
     QFile file(fileName);
     if (file.open(QIODevice::ReadOnly)) {
-        const QString data(QString::fromUtf8(file.readAll()));
-        if (fileName.endsWith(".html"))
-            setHtml(data);
-        else
-            setPlainText(data);
+        QString content = QString::fromUtf8(file.readAll());
+        if (fileName.endsWith(".html")) {
+            setHtml(content);
+        } else {
+            setPlainText(content);
+        }
+    }
+
+    emit fileNameChanged(fileName);
+}
+
+void TextEdit::clearHighlighter()
+{
+    // Delete the highlighter if it exists
+    if (m_highlighter) {
+        delete m_highlighter;
+        m_highlighter = nullptr;
     }
 }
 
