@@ -1,5 +1,4 @@
 # Copyright (C) 2022 The Qt Company Ltd.
-# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
 cmake_minimum_required(VERSION 3.16)
 project(simpletextviewer LANGUAGES CXX)
@@ -20,6 +19,8 @@ qt_add_executable(simpletextviewer
     main.cpp
     mainwindow.cpp mainwindow.h
     textedit.cpp textedit.h
+    callgrindhighlighter.h
+    callgrindhighlighter.cpp
 )
 
 set_target_properties(simpletextviewer PROPERTIES
