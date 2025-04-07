@@ -2,6 +2,10 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QPushButton>
+#include <QMap>
 
 QT_BEGIN_NAMESPACE
 class QAction;
@@ -10,6 +14,13 @@ QT_END_NAMESPACE
 
 class Assistant;
 class TextEdit;
+
+// Simple struct to hold Callgrind metrics.
+struct Metrics {
+    int executionTime;
+    int callCount;
+    int memoryUsage;
+};
 
 class MainWindow : public QMainWindow
 {
@@ -22,6 +33,10 @@ private slots:
     void about();
     void showDocumentation();
     void open();
+    void searchText();   // New search function
+    void filterResults(); // New filter function
+
+
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -29,6 +44,7 @@ protected:
 private:
     void createActions();
     void createMenus();
+    void createSearchBar();  // UI for search & filtering
 
     TextEdit *textViewer;
     Assistant *assistant;
@@ -39,9 +55,13 @@ private:
     QAction *assistantAct;
     QAction *clearAct;
     QAction *openAct;
+    QAction *openCallgrindAct;  // New action for Callgrind file
     QAction *exitAct;
     QAction *aboutAct;
     QAction *aboutQtAct;
+    QLineEdit *searchBox;     // New search bar
+    QComboBox *filterDropdown; // New filter selection
+    QPushButton *searchBtn;   // New search button
 };
 
 #endif
