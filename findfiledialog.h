@@ -26,6 +26,7 @@ class FindFileDialog : public QDialog
 
 public:
     FindFileDialog(TextEdit *editor, Assistant *assistant);
+    QString selectedFile() const;
 
 private slots:
     void browse();

@@ -20,7 +20,8 @@ FindFileDialog::FindFileDialog(TextEdit *editor, Assistant *assistant)
     , currentEditor(editor)
     , currentAssistant(assistant)
 {
-    //! [0]
+    Q_ASSERT(currentEditor != nullptr);  // Ensure currentEditor is not null
+    Q_ASSERT(currentAssistant != nullptr);  // Ensure currentAssistant is not null
 
     createButtons();
     createComboBoxes();
@@ -107,10 +108,10 @@ void FindFileDialog::showFiles(const QStringList &files)
         QTreeWidgetItem *item = new QTreeWidgetItem(foundFilesTree, {file});
 
         // Highlight Callgrind files
-        if (file.contains("callgrind.out")) {
+        if (file.contains("callgrind.out") || file.endsWith(".callgrind", Qt::CaseInsensitive)) {
             item->setBackground(0, QBrush(Qt::green));// Set green highlight
 
-            if (highlightCheckBox->isChecked() && file.contains("callgrind.out")) {
+                if (highlightCheckBox->isChecked() && (file.contains("callgrind.out")|| file.endsWith(".callgrind", Qt::CaseInsensitive))) {
                 item->setBackground(0, QBrush(Qt::green));
             } else {
                 item->setBackground(0, QBrush(Qt::transparent)); // Remove highlighting
@@ -197,4 +198,15 @@ void FindFileDialog::createLayout()
 void FindFileDialog::toggleHighlighting()
 {
     update(); // Refresh the file list when the checkbox is toggled
+}
+
+
+QString FindFileDialog::selectedFile() const
+{
+    QTreeWidgetItem *item = foundFilesTree->currentItem();
+    if (!item)
+        return QString();  // Return an empty string if no file is selected.
+
+    const QString fileName = item->text(0);
+    return QDir(directoryComboBox->currentText()).filePath(fileName);
 }
